@@ -7,7 +7,7 @@ LABEL vendor="Adrian.gin@gmail.com"
 ENV USERNAME=rock64dev
 
 
-ADD .bashrc /root/.bashrc
+#ADD .bashrc /root/.bashrc
 
 # setup multiarch enviroment
 RUN dpkg --add-architecture arm64
