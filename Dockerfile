@@ -10,14 +10,19 @@ ENV USERNAME=rock64dev
 #ADD .bashrc /root/.bashrc
 
 # setup multiarch enviroment
-RUN dpkg --add-architecture arm64
+#RUN dpkg --add-architecture arm64
 
-RUN echo "deb http://deb.debian.org/debian stretch main contrib" >> /etc/apt/sources.list
+RUN echo "deb http://deb.debian.org/debian stretch contrib" >> /etc/apt/sources.list
 RUN echo "deb-src http://deb.debian.org/debian stretch main contrib" >> /etc/apt/sources.list
 RUN echo "deb-src http://deb.debian.org/debian stretch-updates main" >> /etc/apt/sources.list
 RUN echo "deb-src http://security.debian.org stretch/updates main" >> /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y sudo git net-tools vim #gcc-6-aarch64-linux-gnu device-tree-compiler make
+RUN apt-get update && apt-get install -y sudo git net-tools vim file python bc gcc gcc-aarch64-linux-gnu make device-tree-compiler libncurses5-dev
+
+
+
+#RUN apt-get update && apt-get install -y gcc:arm64 device-tree-compiler:arm64 make:arm64 :arm64
+
 
 RUN useradd -ms /bin/bash $USERNAME
 
@@ -30,5 +35,10 @@ USER $USERNAME
 #add current directory to work DIR
 #COPY . /home/$USERNAME
 #No need to do this as the directory is mounted with the docker -v command
+
+
+#set environment to use aarch64
+#RUN sudo ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 /lib/
+ENV LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:$LD_LIBRARY_PATH
 
 
