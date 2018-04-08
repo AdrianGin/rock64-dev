@@ -32,7 +32,7 @@ sync:
 		if [ -d $$p ]; \
 		then \
 		echo "$$p exists!"; \
-		cd $$p; git pull; \
+		cd $$p && git pull; cd ..; \
 		else \
 		echo "$$p does not exist!"; \
 		git clone $(REPO_PREFIX)$$p.git --depth=1; \
