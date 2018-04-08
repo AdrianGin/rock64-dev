@@ -17,3 +17,7 @@ docker run --rm image_name
 To enter Docker shell, enter:
 make shell
 
+
+
+Resources on Building uboot for Rockchip:
+http://opensource.rock-chips.com/wiki_U-Boot
