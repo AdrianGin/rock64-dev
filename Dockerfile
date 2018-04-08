@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y sudo git net-tools vim file python bc g
 
 
 
-#RUN apt-get update && apt-get install -y gcc:arm64 device-tree-compiler:arm64 make:arm64 :arm64
+#RUN apt-get update && apt-get install -y gcc:arm64 device-tree-compiler:arm64 make:arm64
 
 
 RUN useradd -ms /bin/bash $USERNAME
@@ -38,7 +38,7 @@ USER $USERNAME
 
 
 #set environment to use aarch64
-#RUN sudo ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 /lib/
+RUN sudo ln -s /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 /lib/
 ENV LD_LIBRARY_PATH=/usr/aarch64-linux-gnu/lib:$LD_LIBRARY_PATH
 
 
