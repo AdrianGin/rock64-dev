@@ -113,19 +113,34 @@ uboot-build: atf
 	$(UBOOT_MAKE) CROSS_COMPILE=$(CROSS_CC) -j$$(nproc) all 
 
 ifeq (1,$(USE_UBOOT_SPL))
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/spl/u-boot-spl.bin  idbloader.img
+	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/spl/u-boot-spl.bin  uboot_idbloader.img
 else ifeq (1,$(USE_UBOOT_TPL))
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/tpl/u-boot-tpl.bin  idbloader.img
-	cat $(UBOOT_DIR)/spl/u-boot-spl.bin >> idbloader.img
+	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/tpl/u-boot-tpl.bin  uboot_idbloader.img
+	cat $(UBOOT_DIR)/spl/u-boot-spl.bin >> uboot_idbloader.img
 else
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(DDR) idbloader.img
-	cat $(MINILOADER) >> idbloader.img
+	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(DDR) mini_idbloader.img
+	cat $(MINILOADER) >> mini_idbloader.img
 endif
 
+	$(RKBIN_DIR)/tools/loaderimage --pack --uboot $(UBOOT_DIR)/u-boot-dtb.bin uboot.img
+	cp $(ATF_DIR)/build/rk3328/release/bl31.bin $(RKBIN_DIR)/rk33
+	$(RKBIN_DIR)/tools/trust_merger rkbin/tools/RK3328TRUST.ini
 
 
-	
+OUTPUT_DIR=outputs
+OUTPUT_IMAGE=sdcardimage.bin
+OUTPUT_IMAGE_TPL=sdcardimage_tpl.bin
 
+.PHONY: sd_card_image
+sd_card_image: atf uboot-build
+ifeq (1,$(USE_UBOOT_TPL))
+	dd if=uboot_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=64
+	dd if=$(UBOOT_DIR)/u-boot.itb of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=$$((512-64))
+else
+	dd if=mini_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=64
+	dd if=uboot.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=16384
+	dd if=$(RKBIN_DIR)/img/rk3328/trust.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=24576
+endif
 
 .PHONY: atf
 atf:
