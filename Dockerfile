@@ -17,7 +17,7 @@ RUN echo "deb-src http://deb.debian.org/debian stretch main contrib" >> /etc/apt
 RUN echo "deb-src http://deb.debian.org/debian stretch-updates main" >> /etc/apt/sources.list
 RUN echo "deb-src http://security.debian.org stretch/updates main" >> /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y sudo git net-tools vim file python bc gcc gcc-aarch64-linux-gnu make device-tree-compiler libncurses5-dev swig libpython-dev
+RUN apt-get update && apt-get install -y sudo git net-tools vim file python bc gcc gcc-aarch64-linux-gnu make device-tree-compiler libncurses5-dev swig libpython-dev gawk parted udev
 
 #RUN apt-get update && apt-get install -y gcc:arm64 device-tree-compiler:arm64 make:arm64
 

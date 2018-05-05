@@ -33,8 +33,14 @@ REPO_LIST := $(KERNEL_REPO) $(UBOOT_REPO) $(ATF_REPO) $(RKBIN_REPO)
 
 ATF_MAKE ?= make -C $(ATF_DIR)
 BL31 ?= $(ATF_DIR)/build/rk3328/release/bl31/bl31.elf
+
+#BL31 ?= $(RKBIN_REPO)/rk33/rk3328_bl31_v1.39.bin
+
 DDR ?= $(RKBIN_REPO)/rk33/rk3328_ddr_333MHz_v1.06.bin
 MINILOADER ?= $(RKBIN_REPO)/rk33/rk3328_miniloader_v2.43.bin
+
+#DDR ?= $(RKBIN_REPO)/rk33/rk3328_ddr_333MHz_v1.08.bin
+#MINILOADER ?= $(RKBIN_REPO)/rk33/rk3328_miniloader_v2.44.bin
 
 .PHONY: sync
 sync:
@@ -101,51 +107,85 @@ menuconfig:
 kernel-build:
 	$(KERNEL_MAKE) HOSTCC=$(HOSTCC) $(KERNEL_DEFCONFIG) -j$$(nproc) V=0 all
 
-UBOOT_MAKE ?= make -C $(UBOOT_DIR)
+UBOOT_OUTPUT_DIR ?= ./tmp/u-boot-rock64
+UBOOT_BUILD_DIR ?= $(UBOOT_DIR)/tmp/u-boot-rock64
+UBOOT_MAKE ?= make -C $(UBOOT_DIR) KBUILD_OUTPUT=$(UBOOT_OUTPUT_DIR) CROSS_COMPILE=$(CROSS_CC) BL31=$(realpath $(BL31)) V=1
 UBOOT_DEFCONFIG ?= rock64-rk3328_defconfig
 .PHONY: uboot-menuconfig
 uboot-menuconfig:
-	$(UBOOT_MAKE) CROSS_COMPILE=$(CROSS_CC) $(UBOOT_DEFCONFIG) menuconfig
+	$(UBOOT_MAKE) ARCH=arm64 $(UBOOT_DEFCONFIG) menuconfig
+	$(UBOOT_MAKE) ARCH=arm64 savedefconfig
 
 .PHONY: uboot-build
 uboot-build: atf
 	$(UBOOT_MAKE) CROSS_COMPILE=$(CROSS_CC) -j$$(nproc) u-boot.itb BL31=$(realpath $(BL31))
-	$(UBOOT_MAKE) CROSS_COMPILE=$(CROSS_CC) -j$$(nproc) all 
+	$(UBOOT_MAKE) -j$$(nproc) all 
+	$(UBOOT_MAKE) -j$$(nproc) u-boot.itb
 
 ifeq (1,$(USE_UBOOT_SPL))
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/spl/u-boot-spl.bin  uboot_idbloader.img
+	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(UBOOT_BUILD_DIR)/spl/u-boot-spl.bin  uboot_idbloader.img
 else ifeq (1,$(USE_UBOOT_TPL))
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(UBOOT_DIR)/tpl/u-boot-tpl.bin  uboot_idbloader.img
-	cat $(UBOOT_DIR)/spl/u-boot-spl.bin >> uboot_idbloader.img
+	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(UBOOT_BUILD_DIR)/tpl/u-boot-tpl.bin  uboot_idbloader.img
+	#cat $(UBOOT_BUILD_DIR)/spl/u-boot-spl.bin >> uboot_idbloader.img
 else
-	$(UBOOT_DIR)/tools/mkimage -n rk3288 -T rksd -d $(DDR) mini_idbloader.img
+	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(DDR) idbloader.img
+	cp idbloader.img mini_idbloader.img	
+	cp idbloader.img spl_idbloader.img
 	cat $(MINILOADER) >> mini_idbloader.img
+	cat $(UBOOT_BUILD_DIR)/spl/u-boot-spl.bin  >> spl_idbloader.img
 endif
 
-	$(RKBIN_DIR)/tools/loaderimage --pack --uboot $(UBOOT_DIR)/u-boot-dtb.bin uboot.img
-	cp $(ATF_DIR)/build/rk3328/release/bl31.bin $(RKBIN_DIR)/rk33
-	$(RKBIN_DIR)/tools/trust_merger rkbin/tools/RK3328TRUST.ini
+	$(RKBIN_DIR)/tools/loaderimage --pack --uboot $(UBOOT_BUILD_DIR)/u-boot.bin u-boot.img 0x200000
+	(cd $(RKBIN_DIR)/tools && ./trust_merger RK3328TRUST.ini --verbose)
+	cp $(RKBIN_DIR)/tools/trust.img trust.img
 
 
 OUTPUT_DIR=outputs
 OUTPUT_IMAGE=sdcardimage.bin
 OUTPUT_IMAGE_TPL=sdcardimage_tpl.bin
 
+LOADER1_IMG = idbloader.img
+LOADER2_IMG = u-boot.itb
+
 .PHONY: sd_card_image
-sd_card_image: atf uboot-build
+sd_card_image:
+	rm $(OUTPUT_DIR)/$(OUTPUT_IMAGE)
+	dd if=/dev/zero of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) bs=1M count=0 seek=150
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) mklabel gpt
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader1 64 8063
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader2 16384 24575
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart atf 24576 32767
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart boot 32768 262143
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart root 262144 100%
+	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) set 4 boot on
+
 ifeq (1,$(USE_UBOOT_TPL))
-	dd if=uboot_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=64
-	dd if=$(UBOOT_DIR)/u-boot.itb of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=$$((512-64))
+	#dd if=uboot_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=64 conv=notrunc
+	#dd if=$(UBOOT_BUILD_DIR)/u-boot.itb of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=512
+
+
+	rm $(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) -f
+	#dd if=$(UBOOT_OUTPUT_DIR)/$(LOADER1_IMG) of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=64 conv=notrunc
+	dd if=uboot_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=64 conv=notrunc	
+	#dd if=$(UBOOT_DIR)/u-boot.itb of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE_TPL) seek=512 conv=notrunc
 else
-	dd if=mini_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=64
-	dd if=uboot.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=16384
-	dd if=$(RKBIN_DIR)/img/rk3328/trust.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=24576
+	dd if=mini_idbloader.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=64 conv=notrunc
+	dd if=$(UBOOT_BUILD_DIR)/u-boot.itb of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=512 conv=notrunc
+	dd if=u-boot.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=16384 conv=notrunc
+	dd if=trust.img of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) seek=24576 conv=notrunc
 endif
+	
+
+
+
 
 .PHONY: atf
 atf:
 	$(ATF_MAKE) realclean
-	$(ATF_MAKE) CROSS_COMPILE=$(CROSS_CC) -j$$(nproc) PLAT=rk3328 bl31
+	$(ATF_MAKE) CROSS_COMPILE=$(CROSS_CC) M0_CROSS_COMPILE=arm-linux-gnueabi- -j$$(nproc) PLAT=rk3328 bl31 DEBUG=1
+	$(ATF_MAKE) CROSS_COMPILE=$(CROSS_CC) M0_CROSS_COMPILE=arm-linux-gnueabi- -j$$(nproc) PLAT=rk3328 bl31 LOG_LEVEL=LOG_LEVEL_VERBOSE
 
+	ln -rfs $(ATF_DIR)/build/rk3328/release/bl31.bin $(RKBIN_DIR)/rk33/bl31.bin
+	ln -rfs $(ATF_DIR)/build/rk3328/release/bl31/bl31.elf $(RKBIN_DIR)/rk33/bl31.elf
 
 #include Makefile.kernel.mk
