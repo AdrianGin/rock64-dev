@@ -1,0 +1,8 @@
+r8152
+rt2800usb
+nf_conntrack_ipv4
+xt_tcpudp
+xt_nat
+xt_string
+xt_state
+xt_multiport

@@ -100,10 +100,11 @@ shell:
 HOSTCC ?= gcc
 
 CROSS_CC ?= aarch64-linux-gnu-
-
+KERNEL_OUT ?= output
 KERNEL_MAKE ?= make -C $(KERNEL_DIR) \
 	EXTRAVERSION=$(KERNEL_EXTRAVERSION) \
 	KDEB_PKGVERSION=$(RELEASE_NAME) \
+	KBUILD_OUTPUT=$(KERNEL_OUT) \
 	ARCH=arm64 \
 	HOSTCC=$(HOSTCC) \
 	CROSS_COMPILE=$(CROSS_CC)
@@ -113,12 +114,14 @@ menuconfig:
 	$(KERNEL_MAKE) $(KERNEL_DEFCONFIG)
 	$(KERNEL_MAKE) menuconfig
 	$(KERNEL_MAKE) savedefconfig
-	mv $(KERNEL_DIR)/defconfig $(KERNEL_DIR)/arch/arm64/configs/$(KERNEL_DEFCONFIG)
+	cp $(KERNEL_DIR)/output/defconfig $(KERNEL_DIR)/arch/arm64/configs/$(KERNEL_DEFCONFIG)
 
 
 .PHONY: kernel-build		# edit kernel config and save as defconfig
 kernel-build:
 	$(KERNEL_MAKE) -j$$(nproc) all
+	$(KERNEL_MAKE) -j$$(nproc) modules
+	$(KERNEL_MAKE) INSTALL_MOD_PATH=modules modules_install
 
 UBOOT_OUTPUT_DIR ?= ./tmp/u-boot-rock64
 UBOOT_BUILD_DIR ?= $(UBOOT_DIR)/tmp/u-boot-rock64
@@ -134,6 +137,7 @@ uboot-build: atf
 	$(UBOOT_MAKE) CROSS_COMPILE=$(CROSS_CC) -j$$(nproc) u-boot.itb BL31=$(realpath $(BL31))
 	$(UBOOT_MAKE) -j$$(nproc) all 
 	$(UBOOT_MAKE) -j$$(nproc) u-boot.itb
+	
 
 ifeq (1,$(USE_UBOOT_SPL))
 	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(UBOOT_BUILD_DIR)/spl/u-boot-spl.bin  uboot_idbloader.img
@@ -153,15 +157,15 @@ endif
 
 .PHONY: boot.img
 boot.img:
-	cp $(KERNEL_DIR)/arch/arm64/boot/Image $(OUTPUT_DIR)
-	cp $(KERNEL_DIR)/arch/arm64/boot/dts/rockchip/$(DTB) $(OUTPUT_DIR)
+	cp $(KERNEL_DIR)/$(KERNEL_OUT)/arch/arm64/boot/Image $(OUTPUT_DIR)
+	cp $(KERNEL_DIR)/$(KERNEL_OUT)/arch/arm64/boot/dts/rockchip/$(DTB) $(OUTPUT_DIR)
 	
 
 
 .PHONY: sd_card_image
 sd_card_image:
 	rm -f $(OUTPUT_DIR)/$(OUTPUT_IMAGE)
-	dd if=/dev/zero of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) bs=1M count=0 seek=128
+	dd if=/dev/zero of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) bs=1M count=0 seek=750
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) mklabel gpt
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader1 64 8063
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader2 16384 24575
@@ -195,13 +199,15 @@ ROOT_CONFIG_MAKE ?= make -C $(BUILD_ROOT_REPO) \
 
 .PHONY: root-config
 root-config:
-	$(ROOT_CONFIG_MAKE) rockchip_rk3328_minimal_config
+	$(ROOT_CONFIG_MAKE) rockchip_rk3328_minimal_defconfig
 	$(ROOT_CONFIG_MAKE) menuconfig
+	$(ROOT_CONFIG_MAKE) savedefconfig
 
 
-.PHONY: build-root
+.PHONY: build-root 
 build-root: 
 	$(ROOT_CONFIG_MAKE)
+	
 
 .PHONY: atf
 atf:

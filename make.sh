@@ -25,8 +25,8 @@ generate_boot_image() {
 
 
 
-make atf
-make uboot-build
+#make atf
+#make uboot-build
 make boot.img
 
 generate_boot_image
