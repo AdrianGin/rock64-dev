@@ -19,7 +19,7 @@ UBOOT_REPO := rock64-u-boot
 ATF_REPO := arm-trusted-firmware
 RKBIN_REPO := rock64-rkbin
 BUILD_ROOT_REPO := rock64-buildroot
-LEDE_REPO := rock64-lede
+#LEDE_REPO := rock64-lede
 
 export KERNEL_DIR ?= $(KERNEL_REPO)
 export UBOOT_DIR ?= $(UBOOT_REPO)
@@ -32,7 +32,7 @@ KERNEL_DEFCONFIG ?= rockchip_linux_defconfig
 
 REPO_PREFIX := https://github.com/AdrianGin/
 
-REPO_LIST := $(KERNEL_REPO) $(UBOOT_REPO) $(ATF_REPO) $(RKBIN_REPO) $(BUILD_ROOT_REPO) $(LEDE_REPO)
+REPO_LIST := $(KERNEL_REPO) $(UBOOT_REPO) $(ATF_REPO) $(RKBIN_REPO) $(BUILD_ROOT_REPO)
 
 
 ATF_MAKE ?= make -C $(ATF_DIR)
@@ -145,6 +145,7 @@ else ifeq (1,$(USE_UBOOT_TPL))
 	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(UBOOT_BUILD_DIR)/tpl/u-boot-tpl.bin  uboot_idbloader.img
 	#cat $(UBOOT_BUILD_DIR)/spl/u-boot-spl.bin >> uboot_idbloader.img
 else
+	mkdir -p $(OUTPUT_DIR)
 	$(UBOOT_BUILD_DIR)/tools/mkimage -n rk3328 -T rksd -d $(DDR) $(OUTPUT_DIR)/idbloader.img
 	cat $(MINILOADER) >> $(OUTPUT_DIR)/idbloader.img
 endif
