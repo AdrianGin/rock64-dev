@@ -102,6 +102,7 @@ HOSTCC ?= gcc
 CROSS_CC ?= aarch64-linux-gnu-
 KERNEL_OUT ?= output
 KERNEL_MAKE ?= make -C $(KERNEL_DIR) \
+	LOCALVERSION= \	
 	EXTRAVERSION=$(KERNEL_EXTRAVERSION) \
 	KDEB_PKGVERSION=$(RELEASE_NAME) \
 	KBUILD_OUTPUT=$(KERNEL_OUT) \
@@ -166,7 +167,7 @@ boot.img:
 .PHONY: sd_card_image
 sd_card_image:
 	rm -f $(OUTPUT_DIR)/$(OUTPUT_IMAGE)
-	dd if=/dev/zero of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) bs=1M count=0 seek=750
+	dd if=/dev/zero of=$(OUTPUT_DIR)/$(OUTPUT_IMAGE) bs=1M count=0 seek=1400
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) mklabel gpt
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader1 64 8063
 	parted -s $(OUTPUT_DIR)/$(OUTPUT_IMAGE) unit s mkpart loader2 16384 24575
